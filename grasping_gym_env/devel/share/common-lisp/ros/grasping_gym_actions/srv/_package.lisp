@@ -1,0 +1,15 @@
+(cl:defpackage grasping_gym_actions-srv
+  (:use )
+  (:export
+   "MAKEENVSTEP"
+   "<MAKEENVSTEP-REQUEST>"
+   "MAKEENVSTEP-REQUEST"
+   "<MAKEENVSTEP-RESPONSE>"
+   "MAKEENVSTEP-RESPONSE"
+   "RESETENV"
+   "<RESETENV-REQUEST>"
+   "RESETENV-REQUEST"
+   "<RESETENV-RESPONSE>"
+   "RESETENV-RESPONSE"
+  ))
+
