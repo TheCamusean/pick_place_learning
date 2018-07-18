@@ -1,2 +1,0 @@
-grasping_gym_actions
--DCATKIN_DEVEL_PREFIX=/home/jurain/Documents/conda_3.6/grasping_gym_env/devel -DCMAKE_INSTALL_PREFIX=/home/jurain/Documents/conda_3.6/grasping_gym_env/install -G Unix Makefiles

@@ -1,8 +1,0 @@
-prefix=/home/jurain/Documents/conda_3.6/grasping_gym_env/devel
-
-Name: grasping_gym_actions
-Description: Description of grasping_gym_actions
-Version: 0.0.0
-Cflags: -I/home/jurain/Documents/conda_3.6/grasping_gym_env/devel/include -I/home/jurain/Documents/conda_3.6/grasping_gym_env/src/grasping_gym_actions/include
-Libs: -L/home/jurain/Documents/conda_3.6/grasping_gym_env/devel/lib 
-Requires: message_runtime kdl_parser trac_ik_lib
