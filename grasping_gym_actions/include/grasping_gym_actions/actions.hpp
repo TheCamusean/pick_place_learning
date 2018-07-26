@@ -74,7 +74,7 @@ private:
     bool addTableToScene(float height, float width,float thickness);
     void checkCollisionCb(const gazebo_msgs::ContactsState::ConstPtr & msg);
     float getReward(int time,bool failed,  KDL::Frame cartesian_frame);
-    void controlLoop(float action_vec[]);
+    void controlLoop(std::vector<float> action_vec);
 
 
     std::vector<float> getPose();

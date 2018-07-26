@@ -77,6 +77,8 @@ bool graspingActions::makeEnvStepCb(grasping_gym_actions::makeEnvStep::Request &
     controlLoop(req.action);
   }
 
+
+
     // --------------------------------------------------------------------------------------------------//
     
     //REWARD R
@@ -120,10 +122,11 @@ bool graspingActions::makeEnvStepCb(grasping_gym_actions::makeEnvStep::Request &
     return true;
 }
 
-void graspingActions::controlLoop(float action_vec[])
+void graspingActions::controlLoop(std::vector<float> action_vec)
 {
   // Determine Size of action Vector
-  int size = sizeof(action_vec)/sizeof(action_vec[0]);
+  //int size = sizeof(action_vec)/sizeof(action_vec[0]);
+  int size = action_vec.size();
   for(int i=0; i<size ; i++)
   {
     action_msg_.points[i] = joint_states_.position[i] + action_vec[i];
@@ -345,7 +348,7 @@ bool graspingActions::setRobotInitialPose() {
 }
 
 
-float graspingActions::getReward(int time, bool failed, KDL::Frame cartesian_frame) 
+float graspingActions::getReward(int time, bool failed, Eigen::VectorXd cartesian_frame)
 {
     float error = 0.0;
     // error += fabs(cartesian_frame.p.data[0] - 0.7);
