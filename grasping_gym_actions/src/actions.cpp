@@ -82,41 +82,26 @@ bool graspingActions::makeEnvStepCb(grasping_gym_actions::makeEnvStep::Request &
   std::cout << step_n << std::endl;
   float reward=getReward(step_n,failed);
 
+  // Get new state
+  std::vector<float> new_state(state_dim_,0);
+  ComputeNewState(new_state);
 
-    //STATE S
-    joints_setpoint = robot_.jointStateToKDL(joint_states_);
-    KDL::Frame new_cartesian_frame;
-    if (robot_.JntToCart(joints_setpoint, new_cartesian_frame) < 0)
-    {
-        throw std::runtime_error("Unable to perform the forward kinematics");
-    }
+  // Set response message
+  res.reward=reward;
+  res.next_state=new_state;
+  res.done=(step_n==max_step);
+  res.success=true;
+  res.message="";
 
-    std::cout << "Actual Pose" << std::endl;
-    std::vector<float> new_state(state_dim_,0);
-    for (auto ii = 0; ii < 3; ii++)
-    {
-        new_state[ii] = new_cartesian_frame.p.data[ii];
-    }
-    double R2,P2,Y2;
-    new_cartesian_frame.M.GetRPY(R2,P2,Y2);
-    new_state[3] = R2;
-    new_state[4] = P2;
-    new_state[5] = Y2;
-    new_state[0] = Y2;
+  return true;
+}
 
-    //new_state[0] = Y2;
-
-    // ------------------------------------------------ //
-
-    //RESPONSE
-    res.reward=reward;
-    res.next_state=new_state;
-    res.done=(step_n==max_step);
-    res.success=true;
-    res.message="";
-    //---------------//
-
-    return true;
+void graspingActions::computeNewState(std::vector<float> new_state)
+{
+  for(int i=0 ; i< new_state.size(); i++)
+  {
+    new_state[i] = joint_states_.position[i];
+  }
 }
 
 void graspingActions::controlLoop(std::vector<float> action_vec)
