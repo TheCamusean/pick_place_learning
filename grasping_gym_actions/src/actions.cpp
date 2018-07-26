@@ -2,36 +2,41 @@
 
 #include "grasping_gym_actions/iiwa.h"
 
+#include <tf/transform_listener.h>
 
-graspingActions::graspingActions() : robot_("lbr_iiwa_link_0", "lbr_iiwa_link_7")
+
+graspingActions::graspingActions()
 {
 
     ROS_INFO("Managers created");
     //----------------Services to comunicate with environment------------------
-    makeEnvStep_=nh.advertiseService("makeEnvStep",&graspingActions::makeEnvStepCb,this);
-    resetEnv_=nh.advertiseService("resetEnv",&graspingActions::resetEnvCb,this);
+    makeEnvStep_=nh_.advertiseService("makeEnvStep",&graspingActions::makeEnvStepCb,this);
+    resetEnv_=nh_.advertiseService("resetEnv",&graspingActions::resetEnvCb,this);
     //--------------Services to comunicate with gazebo ------------------------
 
-    resetGazeboEnv_=nh.serviceClient<std_srvs::Empty>("gazebo/reset_world"); //To reset the simulation
-    setModelState_=nh.serviceClient<gazebo_msgs::SetModelState>("gazebo/set_model_state");
-    getModelState_ = nh.serviceClient<gazebo_msgs::GetModelState>("/gazebo/get_model_state");
-    gazeboPausePhysics_=nh.serviceClient<std_srvs::Empty>("/gazebo/pause_physics");
-    gazeboResumePhysics_=nh.serviceClient<std_srvs::Empty>("/gazebo/unpause_physics");
+    resetGazeboEnv_=nh_.serviceClient<std_srvs::Empty>("gazebo/reset_world"); //To reset the simulation
+    setModelState_=nh_.serviceClient<gazebo_msgs::SetModelState>("gazebo/set_model_state");
+    getModelState_ = nh_.serviceClient<gazebo_msgs::GetModelState>("/gazebo/get_model_state");
+    gazeboPausePhysics_=nh_.serviceClient<std_srvs::Empty>("/gazebo/pause_physics");
+    gazeboResumePhysics_=nh_.serviceClient<std_srvs::Empty>("/gazebo/unpause_physics");
 
     // ------------- Topic & Srvices to interact with enviroment ------------------ //
     
-    joint_states_sub = nh.subscribe("/joint_states", 1000, &graspingActions::jointStateCb, this);
-    //odom_subscriber_=nh.subscribe("odom",1,&graspingActions::getOdomCb,this);
-    action_publisher_arm_ =nh.advertise<trajectory_msgs::JointTrajectory>("/arm_controller/command",1000);
-    action_publisher_gripper_ =nh.advertise<trajectory_msgs::JointTrajectory>("/gripper_controller/command",1000);
+    joint_states_sub = nh_.subscribe("/iiwa/joint_states", 1000, &graspingActions::jointStateCb, this);
+    //odom_subscriber_=nh_.subscribe("odom",1,&graspingActions::getOdomCb,this);
+    action_publisher_arm_ =nh_.advertise<trajectory_msgs::JointTrajectory>("/arm_controller/command",1000);
+    action_publisher_gripper_ =nh_.advertise<trajectory_msgs::JointTrajectory>("/gripper_controller/command",1000);
 
 
-    //-------------- Variables -----------------------------------------------
+    // -------------- TF Listener -------------- //
+    listener_ = new tf::TransformListener();
+
+    //-------------- Variables -------------- //
 
 
     //addTableToScene(1.0,3.0,0.1);
-    action_dim_= 1;
-    state_dim_ = 6;
+    action_dim_= 7;
+    state_dim_ = 7;
     max_step=1000;
 
     collision_= false;
@@ -41,13 +46,13 @@ graspingActions::graspingActions() : robot_("lbr_iiwa_link_0", "lbr_iiwa_link_7"
     // --- Action msg ------ //
     action_msg_.points.resize(1);
     action_msg_.joint_names.resize(7);
-    action_msg_.joint_names[0] = "lbr_iiwa_joint_1" ;
-    action_msg_.joint_names[1] = "lbr_iiwa_joint_2" ;
-    action_msg_.joint_names[2] = "lbr_iiwa_joint_3" ;
-    action_msg_.joint_names[3] = "lbr_iiwa_joint_4" ;
-    action_msg_.joint_names[4] = "lbr_iiwa_joint_5" ;
-    action_msg_.joint_names[5] = "lbr_iiwa_joint_6" ;
-    action_msg_.joint_names[6] = "lbr_iiwa_joint_7" ;
+    action_msg_.joint_names[0] = "iiwa_joint_1" ;
+    action_msg_.joint_names[1] = "iiwa_joint_2" ;
+    action_msg_.joint_names[2] = "iiwa_joint_3" ;
+    action_msg_.joint_names[3] = "iiwa_joint_4" ;
+    action_msg_.joint_names[4] = "iiwa_joint_5" ;
+    action_msg_.joint_names[5] = "iiwa_joint_6" ;
+    action_msg_.joint_names[6] = "iiwa_joint_7" ;
 
     action_msg_.points[0].positions.resize(7,0.0);
     action_msg_.points[0].velocities.resize(7,0.0);
@@ -60,84 +65,18 @@ graspingActions::~graspingActions()
     ROS_INFO("DONE");
 }
 
-bool graspingActions::makeEnvStepCb(grasping_gym_actions::makeEnvStep::Request & req, grasping_gym_actions::makeEnvStep::Response & res) {
-    std_srvs::Empty empty;
+bool graspingActions::makeEnvStepCb(grasping_gym_actions::makeEnvStep::Request & req, grasping_gym_actions::makeEnvStep::Response & res)
+{
+  // Step counter
+  std_srvs::Empty empty;
+  int step_n=req.step_n;
 
-    int step_n=req.step_n;
-    // --------------- //
+  bool failed = false;
+  if(!failed)
+  {
+    controlLoop(req.action);
+  }
 
-    std::cout << "JOINT_STATE IS:" << joint_states_.position[0] <<" , " << joint_states_.position[1] <<" , " <<joint_states_.position[2] <<" , " <<joint_states_.position[3] <<" , " << std::endl;
-
-    KDL::JntArray joints_setpoint = robot_.jointStateToKDL(joint_states_);
-
-    KDL::Frame cartesian_frame;
-
-
-    if (robot_.JntToCart(joints_setpoint, cartesian_frame) < 0)
-    {
-        throw std::runtime_error("Unable to perform the forward kinematics");
-    }
-
-    for (auto ii = 0; ii < 3; ii++)
-    {
-        //cartesian_frame.p.data[ii] += req.action[ii];
-    }
-
-    double R , P ,Y;
-    cartesian_frame.M.GetRPY(R, P, Y);
-    std::cout << "ROTATION IS : " << R<<" , " << P<<" , " << Y<<" , "<< std::endl;
-    //KDL::Frame inv_frame = cartesian_frame.Inverse();
-    // inv_frame.M.DoRotX(delta_x[3]);
-    // inv_frame.M.DoRotY(delta_x[4]);
-    cartesian_frame.M.DoRotZ(req.action[0]);
-    //cartesian_frame = inv_frame.Inverse();
-
-    //Perform the inverse kinematics
-
-    if(cartesian_frame.p.data[2] < 0.234)
-    {
-        cartesian_frame.p.data[2] = 0.234;
-    }
-
-    KDL::JntArray new_joints;
-    bool failed = false;
-    if (robot_.CartToJnt(joints_setpoint, cartesian_frame, new_joints) < 0)
-    {
-        ROS_ERROR("Unable to perform the inverse kinematics");
-        failed = true;
-        for (auto ii = 0; ii < 3; ii++)
-        {
-            std::cout << "fallo" << std::endl;
-            cartesian_frame.p.data[ii] -= req.action[ii];
-        }
-        new_joints = joints_setpoint;
-    }
-
-
-
-    auto msg = robot_.KDLToJointState(new_joints);
-
-    for(unsigned int i=0; i<7 ; i++)
-    {
-            action_msg_.points[0].positions[i] = msg.position[i];
-    }
-    // ------- Where the Magic happens ... ------------ //
-
-
-
-    // --------------------------------------------------------------------------------------------------//
-    if(!failed)
-    {
-        ros::service::waitForService("/gazebo/unpause_physics",ros::Duration(3.0));
-        gazeboResumePhysics_.call(empty);
-        //ACTION U
-        action_msg_.header.stamp = ros::Time::now();
-        action_msg_.points[0].time_from_start = ros::Duration(0.02);
-        action_publisher_arm_.publish(action_msg_);
-        sleep(0.05);
-        ros::service::waitForService("/gazebo/pause_physics",ros::Duration(3.0));
-        gazeboPausePhysics_.call(empty);
-    }
     // --------------------------------------------------------------------------------------------------//
     
     //REWARD R
@@ -179,6 +118,27 @@ bool graspingActions::makeEnvStepCb(grasping_gym_actions::makeEnvStep::Request &
     //---------------//
 
     return true;
+}
+
+void graspingActions::controlLoop(float action_vec[])
+{
+  // Determine Size of action Vector
+  int size = sizeof(action_vec)/sizeof(action_vec[0]);
+  for(int i=0; i<size ; i++)
+  {
+    action_msg_.points[i] = joint_states_.position[i] + action_vec[i];
+  }
+
+  // Play - Set Command - Stop
+  ros::service::waitForService("/gazebo/unpause_physics",ros::Duration(3.0));
+  gazeboResumePhysics_.call(empty);
+  //ACTION U
+  action_msg_.header.stamp = ros::Time::now();
+  action_msg_.points[0].time_from_start = ros::Duration(0.02);
+  action_publisher_arm_.publish(action_msg_);
+  sleep(0.05);
+  ros::service::waitForService("/gazebo/pause_physics",ros::Duration(3.0));
+  gazeboPausePhysics_.call(empty);
 }
 
 bool graspingActions::resetEnvCb(grasping_gym_actions::resetEnv::Request & req, grasping_gym_actions::resetEnv::Response & res) {

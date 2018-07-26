@@ -27,12 +27,14 @@
 
 #include "grasping_gym_actions/iiwa.h"
 
+#include <tf/transform_listener.h>
+
 
 
 class graspingActions{
 
 private:
-    ros::NodeHandle nh;
+    ros::NodeHandle nh_;
 
     // ----------- Gym Interaction ----------------- //
     ros::ServiceServer makeEnvStep_;
@@ -66,15 +68,14 @@ private:
 
     bool makeEnvStepCb(grasping_gym_actions::makeEnvStep::Request & req, grasping_gym_actions::makeEnvStep::Response & res);
     bool resetEnvCb(grasping_gym_actions::resetEnv::Request & req, grasping_gym_actions::resetEnv::Response & res);
-
     bool setGazeboModelPose(std::string modelName, std::string referenceFrame,geometry_msgs::Pose pose);
     bool getModelPose(std::string modelName,geometry_msgs::Pose & pose);
     float getRandomDouble(float min, float max);
-
     bool addTableToScene(float height, float width,float thickness);
     void checkCollisionCb(const gazebo_msgs::ContactsState::ConstPtr & msg);
-
     float getReward(int time,bool failed,  KDL::Frame cartesian_frame);
+    void controlLoop(float action_vec[]);
+
 
     std::vector<float> getPose();
 
@@ -83,13 +84,7 @@ private:
     sensor_msgs::JointState joint_states_;
     trajectory_msgs::JointTrajectory action_msg_;
 
-    // Related with Inverse Kinematics
-    robots::Iiwa robot_;
-
-
-
-
-
+    tf::TransformListener *listener_;
 
 
 

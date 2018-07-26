@@ -22,7 +22,7 @@ from gym.utils import seeding
 class GraspingGym(gazebo_env.GazeboEnv):
 
     def __init__(self):
-        #gazebo_env.GazeboEnv.__init__(self, "iiwa_gripper_spawn.launch")
+        gazebo_env.GazeboEnv.__init__(self, "iiwa_gripper_spawn.launch")
 
         print("Add reset and step services")
         self.reset_env_srv_ = rospy.ServiceProxy("resetEnv",resetEnv)
