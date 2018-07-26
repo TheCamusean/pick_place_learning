@@ -71,19 +71,16 @@ bool graspingActions::makeEnvStepCb(grasping_gym_actions::makeEnvStep::Request &
   std_srvs::Empty empty;
   int step_n=req.step_n;
 
+  // Send a Comand
   bool failed = false;
   if(!failed)
   {
     controlLoop(req.action);
   }
 
-
-
-    // --------------------------------------------------------------------------------------------------//
-    
-    //REWARD R
-    std::cout << step_n << std::endl;
-    float reward=getReward(step_n,failed, cartesian_frame);
+  // Obtain the reward
+  std::cout << step_n << std::endl;
+  float reward=getReward(step_n,failed);
 
 
     //STATE S
@@ -347,32 +344,54 @@ bool graspingActions::setRobotInitialPose() {
 
 }
 
+bool graspingActions::getTCPPose(Eigen::VectorXd& tcp_pose)
+  {
+    // Get TCP-WORLD trasnform with tf
+    tf::StampedTransform transform;
+    try
+    {
+      // Lookup transform
+      listener_->lookupTransform("/world", "/iiwa_link_7", ros::Time(0), transform);
+    }
+    catch(tf::TransformException &ex)
+    {
+      ROS_WARN("%s",ex.what());
+      return false;
+    }
 
-float graspingActions::getReward(int time, bool failed, Eigen::VectorXd cartesian_frame)
+    // From Transform to Eigen::Vector3d
+    tcp_pose.resize(6);
+    tcp_pose[0] = transform.getOrigin().x();
+    tcp_pose[1] = transform.getOrigin().y();
+    tcp_pose[2] = transform.getOrigin().z();
+    tcp_pose[3] = transform.getRotation().getX();
+    tcp_pose[4] = transform.getRotation().getY();
+    tcp_pose[5] = transform.getRotation().getZ();
+
+    return true;
+   }
+
+
+float graspingActions::getReward(int time, bool failed)
 {
-    float error = 0.0;
-    // error += fabs(cartesian_frame.p.data[0] - 0.7);
-    // error += fabs(cartesian_frame.p.data[1]);
-    // error += fabs(cartesian_frame.p.data[2]- 0.3);
+  float error = 0.0;
 
-    double R, P,Y;
-    cartesian_frame.M.GetRPY(R, P, Y);
-    //std::cout << "XYZ is: " << cartesian_frame.p.data[0] <<" , " << cartesian_frame.p.data[1] << " , "<< cartesian_frame.p.data[2]<< std::endl;
-    //std::cout << "yaw is :"<< Y << std::endl;
-    error += fabs(Y-1.57);
+  // Compute TCP Pose
+  Eigen::VectorXd cartesian_frame(6,0.0);
+  getTCPPose(cartesian_frame);
 
-
-    //REWARD
-    float reward;
-    if (error < 0.5)
-    {
-        reward = 1/(error);
-    }
-    if(failed)
-    {
-        reward -= 1000;
-    }
-    return reward;
+  // Compute reward
+  error = 0.6;
+  float reward;
+  if (error < 0.5)
+  {
+      reward = 1/(error);
+  }
+  if(failed)
+  {
+      reward -= 1000;
+  }
+  return reward;
 }
 
 bool graspingActions::addTableToScene(float height, float width, float thickness) {
