@@ -84,7 +84,7 @@ bool graspingActions::makeEnvStepCb(grasping_gym_actions::makeEnvStep::Request &
 
   // Get new state
   std::vector<float> new_state(state_dim_,0);
-  ComputeNewState(new_state);
+  computeNewState(new_state);
 
   // Set response message
   res.reward=reward;
@@ -96,7 +96,7 @@ bool graspingActions::makeEnvStepCb(grasping_gym_actions::makeEnvStep::Request &
   return true;
 }
 
-void graspingActions::computeNewState(std::vector<float> new_state)
+void graspingActions::computeNewState(std::vector<float> &new_state)
 {
   for(int i=0 ; i< new_state.size(); i++)
   {
@@ -104,14 +104,18 @@ void graspingActions::computeNewState(std::vector<float> new_state)
   }
 }
 
+
+
 void graspingActions::controlLoop(std::vector<float> action_vec)
 {
+  // Empty
+  std_srvs::Empty empty;
   // Determine Size of action Vector
   //int size = sizeof(action_vec)/sizeof(action_vec[0]);
   int size = action_vec.size();
   for(int i=0; i<size ; i++)
   {
-    action_msg_.points[i] = joint_states_.position[i] + action_vec[i];
+    action_msg_.points[0].positions[i] = joint_states_.position[i] + action_vec[i];
   }
 
   // Play - Set Command - Stop
@@ -125,6 +129,8 @@ void graspingActions::controlLoop(std::vector<float> action_vec)
   ros::service::waitForService("/gazebo/pause_physics",ros::Duration(3.0));
   gazeboPausePhysics_.call(empty);
 }
+
+
 
 bool graspingActions::resetEnvCb(grasping_gym_actions::resetEnv::Request & req, grasping_gym_actions::resetEnv::Response & res) {
     collision_=false;
@@ -143,16 +149,10 @@ bool graspingActions::resetEnvCb(grasping_gym_actions::resetEnv::Request & req, 
 
 std::vector<float> graspingActions::getPose()
 {
-    KDL::JntArray joints_setpoint = robot_.jointStateToKDL(joint_states_);
-    KDL::Frame cartesian_frame;
-    if (robot_.JntToCart(joints_setpoint, cartesian_frame) < 0)
-    {
-        throw std::runtime_error("Unable to perform the forward kinematics");
-    }
     std::vector<float> new_state(state_dim_,0);
     for (auto ii = 0; ii < state_dim_; ii++)
     {
-        new_state[ii] = cartesian_frame.p.data[ii];
+        new_state[ii] = joint_states_.position[ii];
     }
     return new_state;
 }
@@ -329,7 +329,7 @@ bool graspingActions::setRobotInitialPose() {
 
 }
 
-bool graspingActions::getTCPPose(Eigen::VectorXd& tcp_pose)
+bool graspingActions::getTCPPose(std::vector<double> &tcp_pose)
   {
     // Get TCP-WORLD trasnform with tf
     tf::StampedTransform transform;
@@ -362,7 +362,7 @@ float graspingActions::getReward(int time, bool failed)
   float error = 0.0;
 
   // Compute TCP Pose
-  Eigen::VectorXd cartesian_frame(6,0.0);
+  std::vector<double> cartesian_frame(6,0.0);
   getTCPPose(cartesian_frame);
 
   // Compute reward

@@ -74,8 +74,8 @@ private:
     bool addTableToScene(float height, float width,float thickness);
     void checkCollisionCb(const gazebo_msgs::ContactsState::ConstPtr & msg);
     float getReward(int time,bool failed);
-    bool getTCPPose(Eigen::VectorXd& tcp_pose);
-    void computeNewState(std::vector<float> new_state);
+    bool getTCPPose(std::vector<double> &tcp_pose);
+    void computeNewState(std::vector<float> &new_state);
     void controlLoop(std::vector<float> action_vec);
 
 

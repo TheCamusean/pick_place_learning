@@ -18,9 +18,9 @@ find_package(catkin REQUIRED COMPONENTS
 	control_msgs
 	message_generation
 	cmake_modules
-
 	kdl_parser
 	trac_ik_lib
+        tf
 	)
 
 
