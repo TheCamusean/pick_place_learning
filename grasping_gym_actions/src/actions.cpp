@@ -24,8 +24,8 @@ graspingActions::graspingActions()
     
     joint_states_sub = nh_.subscribe("/iiwa/joint_states", 1000, &graspingActions::jointStateCb, this);
     //odom_subscriber_=nh_.subscribe("odom",1,&graspingActions::getOdomCb,this);
-    action_publisher_arm_ =nh_.advertise<trajectory_msgs::JointTrajectory>("/arm_controller/command",1000);
-    action_publisher_gripper_ =nh_.advertise<trajectory_msgs::JointTrajectory>("/gripper_controller/command",1000);
+    action_publisher_arm_ =nh_.advertise<trajectory_msgs::JointTrajectory>("/iiwa/PositionJointInterface_trajectory_controller/command",1000);
+    //action_publisher_gripper_ =nh_.advertise<trajectory_msgs::JointTrajectory>("/gripper_controller/command",1000);
 
 
     // -------------- TF Listener -------------- //
@@ -79,7 +79,7 @@ bool graspingActions::makeEnvStepCb(grasping_gym_actions::makeEnvStep::Request &
   }
 
   // Obtain the reward
-  std::cout << step_n << std::endl;
+  //std::cout << step_n << std::endl;
   float reward=getReward(step_n,failed);
 
   // Get new state
@@ -125,6 +125,7 @@ void graspingActions::controlLoop(std::vector<float> action_vec)
   action_msg_.header.stamp = ros::Time::now();
   action_msg_.points[0].time_from_start = ros::Duration(0.02);
   action_publisher_arm_.publish(action_msg_);
+
   sleep(0.05);
   ros::service::waitForService("/gazebo/pause_physics",ros::Duration(3.0));
   gazeboPausePhysics_.call(empty);
@@ -135,10 +136,13 @@ void graspingActions::controlLoop(std::vector<float> action_vec)
 bool graspingActions::resetEnvCb(grasping_gym_actions::resetEnv::Request & req, grasping_gym_actions::resetEnv::Response & res) {
     collision_=false;
     std_srvs::Empty empty_srv;
+
     if(resetGazeboEnv_.call(empty_srv)){
         setRobotInitialPose();
         setBoxInitialPose();
         std::vector<float> reset_state(state_dim_,0);
+        std::cout << "A ver3!" << std::endl;
+
         res.state = getPose();
         res.success = true;
         collision_= false;
@@ -191,38 +195,6 @@ float graspingActions::getRandomDouble(float min, float max) {
     return random;
 }
 bool graspingActions::setBoxInitialPose() {
-    std_srvs::Empty empty;
-
-    geometry_msgs::Pose boxPose;
-    ros::service::waitForService("/gazebo/unpause_physics",ros::Duration(3.0));
-    gazeboResumePhysics_.call(empty);
-
-    if(!getModelPose("obj1",boxPose)){
-        ROS_ERROR("Error getting box pose.");
-        return false;
-    }
-
-    double x=boxPose.position.x;
-    double y=boxPose.position.y;
-    double z=boxPose.position.z;
-
-    boxPose.position.x = 0.0;
-    boxPose.position.y = 0.0;  
-    boxPose.position.z = 0.0;
-    boxPose.orientation.x=0.0;
-    boxPose.orientation.y=0.0;
-    boxPose.orientation.z=0.0;
-    boxPose.orientation.w=0.0;
-
-
-    if(!setGazeboModelPose("obj1","world",boxPose)){
-        ROS_ERROR("Error setting box pose.");
-        return false;
-    }
-
-    sleep(2);
-    ros::service::waitForService("/gazebo/pause_physics",ros::Duration(3.0));
-    gazeboPausePhysics_.call(empty);
 
     return true;
 }
@@ -230,56 +202,22 @@ bool graspingActions::setBoxInitialPose() {
 bool graspingActions::setRobotInitialPose() {
     std_srvs::Empty empty;
 
-    // OPEN GRIPPER
-
     ros::service::waitForService("/gazebo/unpause_physics",ros::Duration(3.0));
     gazeboResumePhysics_.call(empty);
 
-    trajectory_msgs::JointTrajectory gripper_msg;
-
-    gripper_msg.header.stamp = ros::Time(0);
-    gripper_msg.joint_names.resize(2);
-    gripper_msg.joint_names[0] = "schunk_wsg50_joint_left_jaw" ;
-    gripper_msg.joint_names[1] = "schunk_wsg50_joint_right_jaw";
-
-    gripper_msg.points.resize(1);
-    gripper_msg.points[0].positions.resize(2,0.04);
-    gripper_msg.points[0].velocities.resize(2,0.0);
-    gripper_msg.points[0].accelerations.resize(2,0.0);
-
-    gripper_msg.points[0].time_from_start = ros::Duration(0.1);
-
-    action_publisher_gripper_.publish(gripper_msg);
-
-    double error2 = 1000;
-    while(error2 > 0.1)
-    {
-        error2 = 0;
-        for(unsigned int i=0; i<2; i++)
-        {
-            error2 += fabs(joint_states_.position[7+i] - gripper_msg.points[0].positions[i]);
-        }
-        std::cout << error2 << std::endl;
-
-    }
-
-    std::cout << "move Hand" << std::endl;
-
     // MOVE HAND
-
-
     trajectory_msgs::JointTrajectory robotPose;
 
     robotPose.header.stamp = ros::Time(0);
 
     robotPose.joint_names.resize(7);
-    robotPose.joint_names[0] = "lbr_iiwa_joint_1" ;
-    robotPose.joint_names[1] = "lbr_iiwa_joint_2" ;
-    robotPose.joint_names[2] = "lbr_iiwa_joint_3" ;
-    robotPose.joint_names[3] = "lbr_iiwa_joint_4" ;
-    robotPose.joint_names[4] = "lbr_iiwa_joint_5" ;
-    robotPose.joint_names[5] = "lbr_iiwa_joint_6" ;
-    robotPose.joint_names[6] = "lbr_iiwa_joint_7" ;
+    robotPose.joint_names[0] = "iiwa_joint_1" ;
+    robotPose.joint_names[1] = "iiwa_joint_2" ;
+    robotPose.joint_names[2] = "iiwa_joint_3" ;
+    robotPose.joint_names[3] = "iiwa_joint_4" ;
+    robotPose.joint_names[4] = "iiwa_joint_5" ;
+    robotPose.joint_names[5] = "iiwa_joint_6" ;
+    robotPose.joint_names[6] = "iiwa_joint_7" ;
 
     robotPose.points.resize(1);
     robotPose.points[0].positions.resize(7,0.0);
@@ -323,10 +261,7 @@ bool graspingActions::setRobotInitialPose() {
     ros::service::waitForService("/gazebo/pause_physics",ros::Duration(3.0));
     gazeboPausePhysics_.call(empty);
 
-
-
     return true;
-
 }
 
 bool graspingActions::getTCPPose(std::vector<double> &tcp_pose)
@@ -367,6 +302,8 @@ float graspingActions::getReward(int time, bool failed)
 
   // Compute reward
   error = 0.6;
+
+  error = joint_states_.position[1];
   float reward;
   if (error < 0.5)
   {

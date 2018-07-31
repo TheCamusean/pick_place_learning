@@ -22,7 +22,7 @@ from gym.utils import seeding
 class GraspingGym(gazebo_env.GazeboEnv):
 
     def __init__(self):
-        gazebo_env.GazeboEnv.__init__(self, "iiwa_gripper_spawn.launch")
+        # gazebo_env.GazeboEnv.__init__(self, "iiwa_gripper_spawn.launch")
 
         print("Add reset and step services")
         self.reset_env_srv_ = rospy.ServiceProxy("resetEnv",resetEnv)
@@ -31,8 +31,8 @@ class GraspingGym(gazebo_env.GazeboEnv):
 
         self.episode_step_n_ = 0
         self.max_episode_step_n_=1000
-        self.action_space_dim_=1
-        self.observation_space_dim_=6
+        self.action_space_dim_=7
+        self.observation_space_dim_=7
         self.box_pose_constant_=True
 
         action_up_bounds_=0.05*np.ones(self.action_space_dim_)
@@ -42,16 +42,15 @@ class GraspingGym(gazebo_env.GazeboEnv):
         observation_space_up_bounds_[0]*=1
         observation_space_up_bounds_[1]*=1
         observation_space_up_bounds_[2]*=1
-
-        observation_space_up_bounds_[3]*=pi
-        observation_space_up_bounds_[4]*=pi
-        observation_space_up_bounds_[5]*=pi
-
+        observation_space_up_bounds_[3]*=1
+        observation_space_up_bounds_[4]*=1
+        observation_space_up_bounds_[5]*=1
 
         observation_space_down_bounds_=-observation_space_up_bounds_
 
         self.action_space=spaces.Box(action_down_bounds_, action_up_bounds_)
         self.observation_space=spaces.Box(observation_space_down_bounds_, observation_space_up_bounds_)
+
         print("End Initialization")
 
     def add_episode_step(self):
